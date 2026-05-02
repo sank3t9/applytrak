@@ -1,0 +1,17 @@
+# Default: let Git auto-detect text files and normalize to LF in the repo.
+* text=auto eol=lf
+
+# Force LF for files that *must* have Unix line endings (shell scripts,
+# Docker, configs that get read by Linux containers).
+*.sh        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+Dockerfile  text eol=lf
+*.py        text eol=lf
+
+# Binary files: never touch line endings.
+*.png       binary
+*.jpg       binary
+*.pdf       binary
+*.db        binary
+*.sqlite    binary
