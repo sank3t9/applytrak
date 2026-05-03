@@ -1,0 +1,74 @@
+# =============================================================================
+# ApplyTrak profile.yaml
+#
+# Copy this file to `profile.yaml` and fill in your real values.
+# `profile.yaml` is gitignored — your resume never leaves your machine.
+#
+# Run `python scripts/seed_profile.py` after editing to load it into Postgres.
+# Re-run anytime you change this file; the seed script is idempotent.
+# =============================================================================
+
+# Paste your resume as plain text. Keep it focused — relevant experience,
+# skills, education. The LLM scorer reads this verbatim, so quality matters.
+resume_text: |
+  YOUR NAME
+  email@example.com | https://linkedin.com/in/you | https://github.com/you
+
+  SUMMARY
+  Applied AI engineer with N years of experience shipping LLM-powered
+  systems in production. Strong Python and SQL backgrounds; comfortable
+  across the stack from prompt engineering to infra.
+
+  EXPERIENCE
+  Software Engineer @ Company   2023 - Present
+    - Built X using Python, Postgres, AWS Lambda. Reduced Y by N%.
+    - Led migration of Z from M to N, cutting cost by P%.
+
+  Junior Engineer @ Company     2021 - 2023
+    - Implemented A, B, C using D, E, F.
+
+  EDUCATION
+  B.S. Computer Science, University Name (YYYY)
+
+  SKILLS
+  Languages: Python, SQL, TypeScript
+  AI / GenAI: Anthropic Claude, OpenAI, LangChain, RAG, prompt engineering
+  Backend: FastAPI, Pydantic, async REST
+  Storage: PostgreSQL, Redis, S3
+  Cloud: AWS (Bedrock, Lambda, ECS), Docker, GitHub Actions
+
+# --- Targeting ---
+# Years of experience range you're looking for.
+target_yoe_min: 1
+target_yoe_max: 5
+
+# Locations you'd consider. Use the same naming the JDs do where possible.
+target_locations:
+  - "Remote (US)"
+  - "Remote (Worldwide)"
+  - "San Francisco"
+  - "New York"
+
+# Are remote roles acceptable in general?
+remote_ok: true
+
+# Hard skills you have. Used to gauge "skills overlap" in scoring.
+must_have_skills:
+  - Python
+  - LLM APIs
+  - PostgreSQL
+  - Docker
+
+# Plus skills you have but aren't core. Slightly boosts matching JDs.
+nice_to_have_skills:
+  - LangChain
+  - LangSmith
+  - AWS
+  - pgvector
+  - FastAPI
+
+# Phrases that mark a JD as a hard no. The scorer treats matches as auto-reject.
+excluded_keywords:
+  - "PhD required"
+  - "10+ years"
+  - "Top Secret clearance"

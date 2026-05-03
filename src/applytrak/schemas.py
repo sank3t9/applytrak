@@ -78,3 +78,56 @@ class ParsedJD(BaseModel):
             "'Posting lists 4 roles; extracted the most senior'."
         ),
     )
+
+
+class RelevanceJudgment(BaseModel):
+    """Structured scoring output produced by Claude Sonnet against a parsed JD + profile."""
+
+    score: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Overall relevance score, 0.0 (no fit) to 1.0 (perfect fit).",
+    )
+    reasoning: str = Field(
+        min_length=20,
+        description="Two to three sentences explaining the score. Be specific about what matched and what didn't.",
+    )
+
+    skills_matched: list[str] = Field(
+        default_factory=list,
+        description="Candidate skills explicitly matched by the JD's requirements.",
+    )
+    skills_missing: list[str] = Field(
+        default_factory=list,
+        description="JD must-have skills the candidate appears to lack.",
+    )
+
+    yoe_match: bool = Field(
+        description=(
+            "True if the candidate's YOE falls in the JD's required range, "
+            "or if the JD didn't specify YOE."
+        )
+    )
+    location_match: bool = Field(
+        description=(
+            "True if the JD's location works for the candidate (target locations, "
+            "or remote when remote_ok=True)."
+        )
+    )
+
+    hard_blockers: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Concrete reasons to auto-reject this posting regardless of score, "
+            "e.g., 'requires 8+ YOE', 'on-site Berlin only', 'PhD required', "
+            "'matches excluded keyword: Top Secret clearance'."
+        ),
+    )
+
+    one_line_summary: str = Field(
+        max_length=120,
+        description=(
+            "Short summary for the digest. Must include role/company hint, key match signal, "
+            "and a verdict word. Example: 'Strong RAG match at Anthropic, remote, 2-4 YOE — apply'."
+        ),
+    )
