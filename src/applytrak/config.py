@@ -30,5 +30,10 @@ class Settings(BaseSettings):
     dedupe_similarity_threshold: float = Field(0.92, ge=0.0, le=1.0)
     fetch_interval_hours: int = Field(4, ge=1)
 
+    run_scheduler: bool = True
+
+    anthropic_rpm: int = Field(30, ge=1, description="Max Anthropic API calls per minute.")
+    parse_cache_ttl_days: int = Field(30, ge=1)
+
 
 settings = Settings()

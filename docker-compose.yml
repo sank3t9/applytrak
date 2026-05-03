@@ -27,5 +27,31 @@ services:
       timeout: 3s
       retries: 5
 
+  api:
+    build: .
+    container_name: applytrak-api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:dev@postgres:5432/applytrak
+      REDIS_URL: redis://redis:6379/0
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL_PARSE: ${ANTHROPIC_MODEL_PARSE:-claude-haiku-4-5}
+      ANTHROPIC_MODEL_SCORE: ${ANTHROPIC_MODEL_SCORE:-claude-sonnet-4-6}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-voyage-3}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-applytrak}
+      RUN_SCHEDULER: ${RUN_SCHEDULER:-false}
+      ANTHROPIC_RPM: ${ANTHROPIC_RPM:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Live code reload during dev — edits to src/ trigger uvicorn restart.
+      - ./src:/app/src
+
 volumes:
   pgdata:

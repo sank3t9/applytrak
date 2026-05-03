@@ -7,6 +7,7 @@ Public API:
 from applytrak.config import settings
 from applytrak.llm.client import client
 from applytrak.profile_config import ProfileConfig
+from applytrak.rate_limit import acquire_rate_limit
 from applytrak.schemas import ParsedJD, RelevanceJudgment
 
 TOOL_NAME = "judge_relevance"
@@ -86,19 +87,20 @@ def score_posting(parsed_jd: ParsedJD, profile: ProfileConfig) -> RelevanceJudgm
         parsed_jd_json=parsed_jd.model_dump_json(indent=2),
     )
 
-    response = client.messages.create(
-        model=settings.anthropic_model_score,
-        max_tokens=2048,
-        tools=[
-            {
-                "name": TOOL_NAME,
-                "description": "Return a structured relevance judgment for this JD vs candidate.",
-                "input_schema": RelevanceJudgment.model_json_schema(),
-            }
-        ],
-        tool_choice={"type": "tool", "name": TOOL_NAME},
-        messages=[{"role": "user", "content": prompt}],
-    )
+    with acquire_rate_limit("anthropic", max_per_minute=settings.anthropic_rpm):
+        response = client.messages.create(
+            model=settings.anthropic_model_score,
+            max_tokens=2048,
+            tools=[
+                {
+                    "name": TOOL_NAME,
+                    "description": "Return a structured relevance judgment for this JD vs candidate.",
+                    "input_schema": RelevanceJudgment.model_json_schema(),
+                }
+            ],
+            tool_choice={"type": "tool", "name": TOOL_NAME},
+            messages=[{"role": "user", "content": prompt}],
+        )
 
     for block in response.content:
         if block.type == "tool_use" and block.name == TOOL_NAME:
