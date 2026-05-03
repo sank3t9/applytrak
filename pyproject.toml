@@ -17,6 +17,8 @@ dependencies = [
     "anthropic>=0.40",
     "langsmith>=0.2",
     "pyyaml>=6.0",
+    "voyageai>=0.3",
+    "pgvector>=0.3",
 ]
 
 [dependency-groups]

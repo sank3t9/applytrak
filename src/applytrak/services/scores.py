@@ -10,9 +10,10 @@ from applytrak.schemas import RelevanceJudgment
 
 
 def fetch_unscored_postings(session: Session, limit: int | None = None) -> list[Posting]:
-    """Return parsed postings that don't yet have a relevance score."""
+    """Return canonical (non-duplicate) parsed postings that don't yet have a relevance score."""
     stmt = (
         select(Posting)
+        .where(Posting.canonical_id.is_(None))
         .where(~Posting.id.in_(select(RelevanceScore.posting_id)))
         .order_by(Posting.parsed_at)
     )
