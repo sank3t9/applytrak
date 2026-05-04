@@ -8,7 +8,6 @@ Each `run_*` function returns a typed result and never prints. It's called from:
 
 import logging
 import time
-from typing import Any
 
 import httpx
 from pydantic import BaseModel
@@ -16,6 +15,12 @@ from sqlalchemy import select
 
 from applytrak.config import settings
 from applytrak.db import session_scope
+from applytrak.delivery.digest import (
+    build_digest_message,
+    record_digest_sent,
+    select_top_postings,
+)
+from applytrak.delivery.telegram import send_message
 from applytrak.llm.embeddings import embed_texts
 from applytrak.llm.parse_prompt import parse_jd
 from applytrak.llm.score_prompt import score_posting
@@ -74,6 +79,14 @@ class ScoreResult(BaseModel):
     inserted: int = 0
     skipped: int = 0
     failed: int = 0
+
+
+class DigestResult(BaseModel):
+    sent: bool
+    n_items: int
+    delivery_status: str
+    digest_id: str | None = None
+    delivery_message_id: str | None = None
 
 
 class PipelineRunResult(BaseModel):
@@ -278,4 +291,51 @@ def run_all(fetch_limit: int = DEFAULT_FETCH_LIMIT) -> PipelineRunResult:
         embed=run_embed(),
         dedup=run_dedup(),
         score=run_score(),
+    )
+
+
+def run_digest(*, exclude_sent: bool = True) -> DigestResult:
+    """Build, send to Telegram, and record today's digest.
+
+    Idempotent (with exclude_sent=True): re-runs skip already-sent postings.
+    On Telegram failure, still records a row with delivery_status='failed' so
+    failed posting_ids aren't re-attempted in the next run — flip exclude_sent
+    to False to retry.
+    """
+    with session_scope() as session:
+        rows = select_top_postings(session, exclude_sent=exclude_sent)
+
+    if not rows:
+        logger.info("[digest] no new postings to send")
+        return DigestResult(sent=False, n_items=0, delivery_status="no_items")
+
+    message = build_digest_message(rows)
+
+    try:
+        response = send_message(message)
+        msg_id = response.get("result", {}).get("message_id")
+        delivery_message_id = str(msg_id) if msg_id is not None else None
+        status = "sent"
+        logger.info("[digest] sent %d items (telegram message_id=%s)", len(rows), msg_id)
+    except Exception as e:
+        logger.warning("[digest] telegram send failed: %s: %s", type(e).__name__, e)
+        delivery_message_id = None
+        status = "failed"
+
+    with session_scope() as session:
+        digest = record_digest_sent(
+            session,
+            posting_ids=[r.posting_id for r in rows],
+            delivery_method="telegram",
+            delivery_status=status,
+            delivery_message_id=delivery_message_id,
+        )
+        digest_id = str(digest.id)
+
+    return DigestResult(
+        sent=(status == "sent"),
+        n_items=len(rows),
+        delivery_status=status,
+        digest_id=digest_id,
+        delivery_message_id=delivery_message_id,
     )

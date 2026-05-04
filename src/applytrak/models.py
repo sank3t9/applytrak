@@ -177,3 +177,25 @@ class RelevanceScore(Base):
 
     def __repr__(self) -> str:
         return f"<RelevanceScore posting_id={self.posting_id} score={self.score:.2f}>"
+
+
+class Digest(Base):
+    """One row per digest sent. posting_ids tracks what was included."""
+
+    __tablename__ = "digests"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    posting_ids: Mapped[list[uuid.UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), nullable=False
+    )
+    delivery_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    delivery_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    delivery_message_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<Digest sent_at={self.sent_at} n_items={len(self.posting_ids)}>"

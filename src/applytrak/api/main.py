@@ -20,6 +20,7 @@ from applytrak.config import settings
 from applytrak.pipeline import (
     DEFAULT_FETCH_LIMIT,
     DedupResult,
+    DigestResult,
     EmbedResult,
     FetchResult,
     ParseResult,
@@ -27,6 +28,7 @@ from applytrak.pipeline import (
     ScoreResult,
     run_all,
     run_dedup,
+    run_digest,
     run_embed,
     run_fetch,
     run_parse,
@@ -160,3 +162,12 @@ def trigger_score() -> ScoreResult:
 def trigger_all(fetch_limit: int = DEFAULT_FETCH_LIMIT) -> PipelineRunResult:
     """Run the entire pipeline end-to-end (fetch → parse → embed → dedup → score)."""
     return run_all(fetch_limit=fetch_limit)
+
+
+@app.post("/run/digest", tags=["pipeline"])
+def trigger_digest(include_sent: bool = False) -> DigestResult:
+    """Build, send, and record the daily digest.
+
+    Pass ?include_sent=true to ignore the de-dup table (for previewing).
+    """
+    return run_digest(exclude_sent=not include_sent)
