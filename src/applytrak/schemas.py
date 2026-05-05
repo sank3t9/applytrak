@@ -131,3 +131,37 @@ class RelevanceJudgment(BaseModel):
             "and a verdict word. Example: 'Strong RAG match at Anthropic, remote, 2-4 YOE — apply'."
         ),
     )
+
+
+class JudgeVerdict(BaseModel):
+    """LLM-as-Judge output: a structured grade on a scoring agent's reasoning."""
+
+    reasoning_quality: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=(
+            "How specific and well-grounded is the scorer's reasoning? "
+            "1.0: cites specific skills, YOE numbers, location facts. "
+            "0.5: mentions categories without specifics. "
+            "0.0: vague hand-waving with no concrete references."
+        ),
+    )
+    score_appropriate: bool = Field(
+        description=(
+            "Is the numeric score in a defensible range for the JD/profile? "
+            "Use loose tolerance (±0.15)."
+        )
+    )
+    flags: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Specific issues with the scorer's output, e.g.: "
+            "'doesn't mention candidate YOE'; "
+            "'overlooks excluded keyword in JD'; "
+            "'generic reasoning, no resume-specific references'."
+        ),
+    )
+    critique: str = Field(
+        min_length=20,
+        description="Two to four tight sentences (≤ 80 words) explaining the verdict.",
+    )
