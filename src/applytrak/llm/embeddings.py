@@ -35,9 +35,7 @@ def embed_text(text: str, *, input_type: str = DEFAULT_INPUT_TYPE) -> list[float
     return result.embeddings[0]
 
 
-def embed_texts(
-    texts: list[str], *, input_type: str = DEFAULT_INPUT_TYPE
-) -> list[list[float]]:
+def embed_texts(texts: list[str], *, input_type: str = DEFAULT_INPUT_TYPE) -> list[list[float]]:
     """Embed multiple strings in one API call. Use for batches (faster, fewer requests)."""
     client = _get_client()
     result = client.embed(texts, model=settings.embedding_model, input_type=input_type)

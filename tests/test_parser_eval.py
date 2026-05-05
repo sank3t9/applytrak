@@ -52,8 +52,10 @@ def _string_match(actual: str | None, expected: str | None) -> bool:
 
 
 def _yoe_range_match(
-    a_min: int | None, a_max: int | None,
-    e_min: int | None, e_max: int | None,
+    a_min: int | None,
+    a_max: int | None,
+    e_min: int | None,
+    e_max: int | None,
 ) -> bool:
     """Both null OR ranges overlap."""
     if (a_min, a_max) == (None, None) and (e_min, e_max) == (None, None):
@@ -74,9 +76,7 @@ def _set_overlap(actual: list[str], expected: list[str]) -> float:
     return len(a & e) / len(a | e)
 
 
-def _comp_close(
-    actual: int | None, expected: int | None, pct_tolerance: float = 0.10
-) -> bool:
+def _comp_close(actual: int | None, expected: int | None, pct_tolerance: float = 0.10) -> bool:
     if actual is None and expected is None:
         return True
     if actual is None or expected is None:
@@ -95,26 +95,30 @@ def _confidence_close(actual: float, expected: float, tolerance: float = 0.2) ->
 
 def score_entry(parsed: ParsedJD, expected: dict) -> dict[str, bool | float]:
     return {
-        "company":             _string_match(parsed.company, expected.get("company")),
-        "title":               _string_match(parsed.title, expected.get("title")),
-        "location":            _string_match(parsed.location, expected.get("location")),
-        "is_remote":           parsed.is_remote == expected.get("is_remote"),
-        "is_hybrid":           parsed.is_hybrid == expected.get("is_hybrid"),
-        "yoe_range":           _yoe_range_match(
-                                   parsed.yoe_min, parsed.yoe_max,
-                                   expected.get("yoe_min"), expected.get("yoe_max"),
-                               ),
-        "must_have_skills":    _set_overlap(parsed.must_have_skills,
-                                            expected.get("must_have_skills", [])),
-        "nice_to_have_skills": _set_overlap(parsed.nice_to_have_skills,
-                                            expected.get("nice_to_have_skills", [])),
-        "comp_min":            _comp_close(parsed.comp_min, expected.get("comp_min")),
-        "comp_max":            _comp_close(parsed.comp_max, expected.get("comp_max")),
-        "comp_currency":       _string_match(parsed.comp_currency, expected.get("comp_currency")),
-        "parse_confidence":    _confidence_close(
-                                   parsed.parse_confidence,
-                                   expected.get("parse_confidence", 0.5),
-                               ),
+        "company": _string_match(parsed.company, expected.get("company")),
+        "title": _string_match(parsed.title, expected.get("title")),
+        "location": _string_match(parsed.location, expected.get("location")),
+        "is_remote": parsed.is_remote == expected.get("is_remote"),
+        "is_hybrid": parsed.is_hybrid == expected.get("is_hybrid"),
+        "yoe_range": _yoe_range_match(
+            parsed.yoe_min,
+            parsed.yoe_max,
+            expected.get("yoe_min"),
+            expected.get("yoe_max"),
+        ),
+        "must_have_skills": _set_overlap(
+            parsed.must_have_skills, expected.get("must_have_skills", [])
+        ),
+        "nice_to_have_skills": _set_overlap(
+            parsed.nice_to_have_skills, expected.get("nice_to_have_skills", [])
+        ),
+        "comp_min": _comp_close(parsed.comp_min, expected.get("comp_min")),
+        "comp_max": _comp_close(parsed.comp_max, expected.get("comp_max")),
+        "comp_currency": _string_match(parsed.comp_currency, expected.get("comp_currency")),
+        "parse_confidence": _confidence_close(
+            parsed.parse_confidence,
+            expected.get("parse_confidence", 0.5),
+        ),
     }
 
 
@@ -127,7 +131,9 @@ def _to_float(v: bool | float) -> float:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not GOLDEN_ENTRIES, reason="No golden entries — run scripts/seed_golden.py first")
+@pytest.mark.skipif(
+    not GOLDEN_ENTRIES, reason="No golden entries — run scripts/seed_golden.py first"
+)
 @pytest.mark.parametrize(
     "entry",
     GOLDEN_ENTRIES,
@@ -143,6 +149,5 @@ def test_parse_quality(entry: dict, eval_results: dict) -> None:
 
     failing = {k: v for k, v in fields.items() if _to_float(v) < 0.5}
     assert overall >= PASS_THRESHOLD, (
-        f"Entry {entry['id']} scored {overall:.2f} (< {PASS_THRESHOLD}). "
-        f"Failing fields: {failing}"
+        f"Entry {entry['id']} scored {overall:.2f} (< {PASS_THRESHOLD}). Failing fields: {failing}"
     )

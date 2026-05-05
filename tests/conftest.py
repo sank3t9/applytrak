@@ -50,7 +50,7 @@ def _print_parser_summary(session: pytest.Session) -> None:
 
     overalls = [overall for overall, _ in results.values()]
     print("\n=== Parser overall ===")
-    print(f"  Mean entry score:        {sum(overalls)/len(overalls):.3f}")
+    print(f"  Mean entry score:        {sum(overalls) / len(overalls):.3f}")
     print(f"  Entries above 0.70:      {sum(1 for s in overalls if s >= 0.70)}/{len(overalls)}")
     print(f"  Entries above 0.85:      {sum(1 for s in overalls if s >= 0.85)}/{len(overalls)}")
 
@@ -65,7 +65,7 @@ def _print_judge_summary(session: pytest.Session) -> None:
     all_flags = [flag for v in results.values() for flag in v.flags]
 
     print("\n\n=== Scorer judge eval ===")
-    print(f"  Mean reasoning_quality:  {sum(qualities)/len(qualities):.3f}  (n={len(qualities)})")
+    print(f"  Mean reasoning_quality:  {sum(qualities) / len(qualities):.3f}  (n={len(qualities)})")
     print(f"  score_appropriate rate:  {appropriate_rate:.2f}")
     if all_flags:
         print(f"  Flags raised: {len(all_flags)}")

@@ -9,9 +9,7 @@ from applytrak.models import Posting, RawPosting
 from applytrak.schemas import ParsedJD
 
 
-def fetch_unparsed_raw_postings(
-    session: Session, limit: int | None = None
-) -> list[RawPosting]:
+def fetch_unparsed_raw_postings(session: Session, limit: int | None = None) -> list[RawPosting]:
     """Return raw_postings that don't yet have a corresponding parsed posting."""
     stmt = (
         select(RawPosting)
@@ -33,9 +31,7 @@ def save_posting(
     Idempotent: if a posting already exists for this raw_posting_id, return it
     unchanged with created=False.
     """
-    existing = session.scalar(
-        select(Posting).where(Posting.raw_posting_id == raw_posting_id)
-    )
+    existing = session.scalar(select(Posting).where(Posting.raw_posting_id == raw_posting_id))
     if existing is not None:
         return existing, False
 

@@ -52,6 +52,9 @@ def acquire_rate_limit(
 
         logger.info(
             "[rate-limit] %s: %d/%d in current window, waiting %.1fs for next",
-            key, count, max_per_minute, seconds_until_next_window,
+            key,
+            count,
+            max_per_minute,
+            seconds_until_next_window,
         )
         time.sleep(seconds_until_next_window)

@@ -90,7 +90,10 @@ class RelevanceJudgment(BaseModel):
     )
     reasoning: str = Field(
         min_length=20,
-        description="Two to three sentences explaining the score. Be specific about what matched and what didn't.",
+        description=(
+            "Two to three sentences explaining the score. "
+            "Be specific about what matched and what didn't."
+        ),
     )
 
     skills_matched: list[str] = Field(

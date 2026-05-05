@@ -94,7 +94,9 @@ def score_posting(parsed_jd: ParsedJD, profile: ProfileConfig) -> RelevanceJudgm
             tools=[
                 {
                     "name": TOOL_NAME,
-                    "description": "Return a structured relevance judgment for this JD vs candidate.",
+                    "description": (
+                        "Return a structured relevance judgment for this JD vs candidate."
+                    ),
                     "input_schema": RelevanceJudgment.model_json_schema(),
                 }
             ],

@@ -12,6 +12,7 @@ Add new tables in their respective phases:
 import uuid
 from datetime import datetime
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -23,7 +24,6 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -35,9 +35,7 @@ class Base(DeclarativeBase):
 class RawPosting(Base):
     __tablename__ = "raw_postings"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     source_id: Mapped[str] = mapped_column(String(128), nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
@@ -55,9 +53,7 @@ class RawPosting(Base):
 class Posting(Base):
     __tablename__ = "postings"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     raw_posting_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("raw_postings.id", ondelete="CASCADE"),
@@ -75,9 +71,7 @@ class Posting(Base):
     is_remote: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_hybrid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    must_have_skills: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), nullable=False, default=list
-    )
+    must_have_skills: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     nice_to_have_skills: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, default=list
     )
@@ -92,9 +86,7 @@ class Posting(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    description_embedding: Mapped[list[float] | None] = mapped_column(
-        Vector(1024), nullable=True
-    )
+    description_embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), nullable=True)
 
     canonical_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -116,20 +108,14 @@ class Profile(Base):
 
     target_yoe_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     target_yoe_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    target_locations: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), nullable=False, default=list
-    )
+    target_locations: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     remote_ok: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    must_have_skills: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), nullable=False, default=list
-    )
+    must_have_skills: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     nice_to_have_skills: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, default=list
     )
-    excluded_keywords: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), nullable=False, default=list
-    )
+    excluded_keywords: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -156,19 +142,13 @@ class RelevanceScore(Base):
     score: Mapped[float] = mapped_column(Float, nullable=False)
     reasoning: Mapped[str] = mapped_column(Text, nullable=False)
 
-    skills_matched: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), nullable=False, default=list
-    )
-    skills_missing: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), nullable=False, default=list
-    )
+    skills_matched: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    skills_missing: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
 
     yoe_match: Mapped[bool] = mapped_column(Boolean, nullable=False)
     location_match: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
-    hard_blockers: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), nullable=False, default=list
-    )
+    hard_blockers: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     one_line_summary: Mapped[str] = mapped_column(Text, nullable=False)
 
     scored_at: Mapped[datetime] = mapped_column(
@@ -184,15 +164,11 @@ class Digest(Base):
 
     __tablename__ = "digests"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sent_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    posting_ids: Mapped[list[uuid.UUID]] = mapped_column(
-        ARRAY(UUID(as_uuid=True)), nullable=False
-    )
+    posting_ids: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
     delivery_method: Mapped[str] = mapped_column(String(32), nullable=False)
     delivery_status: Mapped[str] = mapped_column(String(32), nullable=False)
     delivery_message_id: Mapped[str | None] = mapped_column(Text, nullable=True)

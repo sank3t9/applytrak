@@ -256,10 +256,7 @@ def run_score() -> ScoreResult:
         profile_cfg = ProfileConfig.model_validate(profile, from_attributes=True)
 
         unscored = fetch_unscored_postings(session)
-        targets = [
-            (p.id, ParsedJD.model_validate(p, from_attributes=True))
-            for p in unscored
-        ]
+        targets = [(p.id, ParsedJD.model_validate(p, from_attributes=True)) for p in unscored]
 
     result = ScoreResult()
     for posting_id, parsed_jd in targets:
@@ -268,7 +265,9 @@ def run_score() -> ScoreResult:
         except Exception as e:
             logger.warning(
                 "score_posting(posting_id=%s) failed: %s: %s",
-                posting_id, type(e).__name__, e,
+                posting_id,
+                type(e).__name__,
+                e,
             )
             result.failed += 1
             continue

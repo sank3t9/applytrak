@@ -10,7 +10,6 @@ Run:
 """
 
 import os
-from collections import defaultdict
 
 import pytest
 from sqlalchemy import select
