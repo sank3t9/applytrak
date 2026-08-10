@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ApplyTrak — find your job matches</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e6e8ee;
+    --muted: #9aa3b2;
+    --accent: #6ea8fe;
+    --good: #4ade80;
+    --mid: #fbbf24;
+    --bad: #f87171;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fa; --panel: #ffffff; --panel-2: #f1f3f7; --border: #dfe3ea;
+      --text: #1a1d23; --muted: #5f6875; --accent: #2563eb;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
+  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--muted); }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0 26px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; min-width: 120px;
+  }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 18px;
+  }
+  textarea {
+    width: 100%; min-height: 200px; resize: vertical; padding: 12px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); font-weight: 500; }
+  .counter { color: var(--muted); font-size: 13px; margin-left: auto; }
+  .muted { color: var(--muted); }
+  .err {
+    background: color-mix(in srgb, var(--bad) 12%, transparent);
+    border: 1px solid var(--bad); color: var(--text);
+    border-radius: 8px; padding: 12px; margin-bottom: 18px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 10px; font-size: 12px;
+  }
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .pgrid h4 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .match { border-top: 1px solid var(--border); padding: 14px 0; display: flex; gap: 14px; }
+  .match:first-of-type { border-top: 0; }
+  .score {
+    flex: 0 0 52px; height: 52px; border-radius: 10px; display: grid; place-items: center;
+    font-weight: 700; font-size: 16px; background: var(--panel-2); border: 1px solid var(--border);
+  }
+  .score.g { color: var(--good); border-color: var(--good); }
+  .score.m { color: var(--mid); border-color: var(--mid); }
+  .score.b { color: var(--bad); border-color: var(--bad); }
+  .score.pending { font-size: 11px; font-weight: 500; color: var(--muted); }
+  .match-body { min-width: 0; flex: 1; }
+  .match-title { font-weight: 600; }
+  .match-meta { color: var(--muted); font-size: 13px; margin: 2px 0 6px; }
+  .summary { font-size: 14px; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+  .detail { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .detail p { margin: 4px 0; }
+  .blockers { color: var(--bad); }
+  a { color: var(--accent); }
+  ul.latest { list-style: none; padding: 0; margin: 0; }
+  ul.latest li { padding: 7px 0; border-top: 1px solid var(--border); font-size: 14px; }
+  ul.latest li:first-child { border-top: 0; }
+  footer { margin-top: 30px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ApplyTrak</h1>
+    <p>Paste your resume. Get the job postings that actually fit, ranked and explained.</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><b>{{ stats.postings }}</b><span>postings</span></div>
+    <div class="stat"><b>{{ stats.companies }}</b><span>companies</span></div>
+    <div class="stat">
+      <b>{% if stats.last_fetched_at %}{{ stats.last_fetched_at.strftime('%b %d') }}{% else %}—{% endif %}</b>
+      <span>last updated</span>
+    </div>
+  </div>
+
+  <div id="error" class="err" style="display:none"></div>
+
+  <div class="card">
+    <label for="resume"><b>Your resume</b> <span class="muted">(plain text — never stored)</span></label>
+    <textarea id="resume" placeholder="Paste your resume here…" maxlength="{{ resume_max_chars }}"></textarea>
+    <div class="row">
+      <button id="go">Find my matches</button>
+      <button id="sample" class="ghost">Load sample resume</button>
+      <span class="counter"><span id="count">0</span> / {{ resume_max_chars }}</span>
+    </div>
+  </div>
+
+  <div id="profile" class="card" style="display:none">
+    <h3 style="margin:0 0 12px">What we read from your resume</h3>
+    <div class="pgrid" id="profile-body"></div>
+  </div>
+
+  <div id="results" class="card" style="display:none">
+    <h3 style="margin:0 0 4px">Your matches</h3>
+    <p class="muted" id="results-note" style="margin:0 0 12px"></p>
+    <div id="matches"></div>
+  </div>
+
+  {% if latest %}
+  <div class="card">
+    <h3 style="margin:0 0 12px">Recently fetched postings</h3>
+    <ul class="latest">
+      {% for p in latest %}
+      <li>
+        <a href="{{ p.url }}" target="_blank" rel="noopener">{{ p.company }}</a> — {{ p.title }}
+        <span class="muted">{{ p.location or 'location unspecified' }}{% if p.is_remote %} · remote{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <footer>
+    Postings come from Hacker News "Who is hiring?" threads, parsed and embedded on a schedule.
+    Matching is vector search over the corpus, then an LLM scores each candidate against your resume.
+    <a href="/docs">API docs</a>
+  </footer>
+</div>
+
+<script>
+const TOP_K = {{ top_k }};
+const SCORE_CONCURRENCY = 3;
+
+const $ = (id) => document.getElementById(id);
+const resumeEl = $('resume'), goEl = $('go'), errEl = $('error');
+
+const SAMPLE = `Jordan Blake
+Software Engineer | jordan.blake@example.com | Austin, TX
+
+SUMMARY
+Backend engineer with 3 years building Python services and data pipelines.
+Recently focused on LLM-backed features: retrieval pipelines, structured
+extraction, and evaluation harnesses.
+
+EXPERIENCE
+Software Engineer, Northwind Data (2023-2026)
+- Built FastAPI services handling 2M requests/day on PostgreSQL and Redis
+- Shipped a retrieval-augmented search feature using pgvector embeddings
+- Added an offline eval harness that caught prompt regressions before release
+
+Junior Developer, Bright Fern Studio (2022-2023)
+- Maintained Django apps and a Celery job pipeline
+- Wrote integration tests and migrated a legacy cron system to queues
+
+SKILLS
+Python, FastAPI, PostgreSQL, Redis, Docker, AWS, pgvector, SQLAlchemy, pytest
+Familiar with: TypeScript, Kubernetes, Terraform
+
+EDUCATION
+B.S. Computer Science, University of Texas at Austin (2022)`;
+
+resumeEl.addEventListener('input', () => { $('count').textContent = resumeEl.value.length; });
+$('sample').addEventListener('click', () => {
+  resumeEl.value = SAMPLE;
+  $('count').textContent = SAMPLE.length;
+  resumeEl.focus();
+});
+
+function showError(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
+function clearError() { errEl.style.display = 'none'; }
+
+async function postJSON(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+  return data;
+}
+
+function scoreClass(s) { return s >= 0.7 ? 'g' : s >= 0.45 ? 'm' : 'b'; }
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderProfile(p) {
+  const yoe = (p.target_yoe_min == null && p.target_yoe_max == null)
+    ? 'not stated' : `${p.target_yoe_min ?? 0}–${p.target_yoe_max ?? '∞'} years`;
+  const chips = (arr) => arr.length
+    ? `<div class="chips">${arr.map((s) => `<span class="chip">${esc(s)}</span>`).join('')}</div>`
+    : '<div class="muted">—</div>';
+  $('profile-body').innerHTML = `
+    <div><h4>Experience</h4>${esc(p.total_yoe ?? '?')} yrs · targeting ${esc(yoe)}</div>
+    <div><h4>Focus</h4>${esc(p.primary_domain || '—')}${p.seniority ? ' · ' + esc(p.seniority) : ''}</div>
+    <div><h4>Locations</h4>${p.target_locations.length ? esc(p.target_locations.join(', ')) : 'any'}${p.remote_ok ? ' · remote ok' : ''}</div>
+    <div style="grid-column:1/-1"><h4>Core skills</h4>${chips(p.must_have_skills)}</div>`;
+  $('profile').style.display = 'block';
+}
+
+function cardHTML(c) {
+  const loc = c.location || 'location unspecified';
+  return `<div class="match" id="m-${c.posting_id}">
+    <div class="score pending" id="s-${c.posting_id}">…</div>
+    <div class="match-body">
+      <div class="match-title">${esc(c.company)} — ${esc(c.title)}</div>
+      <div class="match-meta">${esc(loc)}${c.is_remote ? ' · remote' : ''} ·
+        <a href="${esc(c.url)}" target="_blank" rel="noopener">view posting</a></div>
+      <div class="summary muted" id="v-${c.posting_id}">scoring…</div>
+    </div>
+  </div>`;
+}
+
+function applyJudgment(id, j) {
+  const scoreEl = $(`s-${id}`);
+  scoreEl.className = `score ${scoreClass(j.score)}`;
+  scoreEl.textContent = j.score.toFixed(2);
+  const blockers = j.hard_blockers.length
+    ? `<p class="blockers"><b>Blockers:</b> ${esc(j.hard_blockers.join('; '))}</p>` : '';
+  $(`v-${id}`).outerHTML = `
+    <div class="summary" id="v-${id}">${esc(j.one_line_summary)}</div>
+    <details>
+      <summary>Why this score</summary>
+      <div class="detail">
+        <p>${esc(j.reasoning)}</p>
+        <p><b>Matched:</b> ${j.skills_matched.length ? esc(j.skills_matched.join(', ')) : '—'}</p>
+        <p><b>Missing:</b> ${j.skills_missing.length ? esc(j.skills_missing.join(', ')) : '—'}</p>
+        ${blockers}
+      </div>
+    </details>`;
+  $(`m-${id}`).dataset.score = j.score;
+}
+
+function markFailed(id, msg) {
+  const scoreEl = $(`s-${id}`);
+  scoreEl.className = 'score pending';
+  scoreEl.textContent = 'n/a';
+  $(`v-${id}`).textContent = msg;
+  $(`m-${id}`).dataset.score = '-1';
+}
+
+function resort() {
+  const box = $('matches');
+  [...box.children]
+    .sort((a, b) => Number(b.dataset.score ?? 0) - Number(a.dataset.score ?? 0))
+    .forEach((el) => box.appendChild(el));
+}
+
+async function scoreAll(resume, profile, candidates) {
+  let done = 0, quotaHit = false;
+  const queue = [...candidates];
+  const note = $('results-note');
+
+  async function worker() {
+    while (queue.length) {
+      if (quotaHit) {
+        queue.splice(0).forEach((c) => markFailed(c.posting_id, 'skipped — demo quota reached'));
+        return;
+      }
+      const c = queue.shift();
+      try {
+        const { judgment } = await postJSON('/api/score', {
+          resume_text: resume, profile, posting_id: c.posting_id,
+        });
+        applyJudgment(c.posting_id, judgment);
+      } catch (e) {
+        if (/quota/i.test(e.message)) { quotaHit = true; showError(e.message); }
+        markFailed(c.posting_id, 'could not be scored');
+      }
+      done++;
+      note.textContent = `Scored ${done} of ${candidates.length}…`;
+      resort();
+    }
+  }
+
+  await Promise.all(Array.from({ length: SCORE_CONCURRENCY }, worker));
+  resort();
+  note.textContent = `${candidates.length} closest postings, scored against your resume.`;
+}
+
+goEl.addEventListener('click', async () => {
+  const resume = resumeEl.value.trim();
+  clearError();
+  if (resume.length < 100) {
+    showError('Please paste a fuller resume — at least 100 characters.');
+    return;
+  }
+
+  goEl.disabled = true;
+  goEl.textContent = 'Reading your resume…';
+  $('results').style.display = 'none';
+  $('profile').style.display = 'none';
+
+  try {
+    const { profile, candidates, corpus_size } = await postJSON('/api/match', { resume_text: resume });
+    renderProfile(profile);
+
+    if (!candidates.length) {
+      showError('No postings matched. The corpus may still be filling up.');
+      return;
+    }
+
+    $('matches').innerHTML = candidates.map(cardHTML).join('');
+    $('results-note').textContent =
+      `Searched ${corpus_size} postings, scoring the ${candidates.length} closest…`;
+    $('results').style.display = 'block';
+
+    goEl.textContent = `Scoring ${candidates.length} matches…`;
+    await scoreAll(resume, profile, candidates);
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    goEl.disabled = false;
+    goEl.textContent = 'Find my matches';
+  }
+});
+</script>
+</body>
+</html>

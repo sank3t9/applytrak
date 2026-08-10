@@ -13,8 +13,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 
+from applytrak.api.demo import router as demo_router
 from applytrak.api.scheduler import make_scheduler
 from applytrak.config import settings
 from applytrak.pipeline import (
@@ -62,12 +63,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="ApplyTrak",
     description=(
-        "Scheduled background service that surfaces relevant new job postings "
-        "daily, parsed and ranked against my resume."
+        "Paste a resume, get ranked job matches from Hacker News hiring threads. "
+        "Postings are fetched, parsed, and embedded on a schedule; matching is "
+        "pgvector search followed by LLM scoring against the resume."
     ),
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.include_router(demo_router)
 
 
 @app.get("/health", tags=["meta"])
@@ -125,49 +129,60 @@ def info() -> dict:
 # Each calls the same function the corresponding script calls. They block the
 # HTTP request for the duration of the run — fine for personal/admin use; in
 # production you'd return immediately and run the work in a background task.
+#
+# Mounted only when EXPOSE_ADMIN_ENDPOINTS is true. The public demo runs with it
+# off so visitors can't trigger pipeline work (which spends API quota).
 # ---------------------------------------------------------------------------
 
+admin_router = APIRouter(prefix="/run", tags=["pipeline"])
 
-@app.post("/run/fetch", tags=["pipeline"])
+
+@admin_router.post("/fetch")
 def trigger_fetch(limit: int = DEFAULT_FETCH_LIMIT) -> FetchResult:
     """Fetch latest HN 'Who is hiring?' comments → raw_postings."""
     return run_fetch(limit=limit)
 
 
-@app.post("/run/parse", tags=["pipeline"])
+@admin_router.post("/parse")
 def trigger_parse() -> ParseResult:
-    """Parse all unparsed raw_postings → postings via Claude Haiku."""
+    """Parse all unparsed raw_postings → postings."""
     return run_parse()
 
 
-@app.post("/run/embed", tags=["pipeline"])
+@admin_router.post("/embed")
 def trigger_embed() -> EmbedResult:
-    """Embed all postings missing description_embedding via Voyage AI."""
+    """Embed all postings missing (or holding a stale) description_embedding."""
     return run_embed()
 
 
-@app.post("/run/dedup", tags=["pipeline"])
+@admin_router.post("/dedup")
 def trigger_dedup() -> DedupResult:
     """Mark duplicate postings via pgvector cosine similarity."""
     return run_dedup()
 
 
-@app.post("/run/score", tags=["pipeline"])
+@admin_router.post("/score")
 def trigger_score() -> ScoreResult:
-    """Score all unscored canonical postings via Claude Sonnet."""
+    """Score all unscored canonical postings against the stored profile."""
     return run_score()
 
 
-@app.post("/run/all", tags=["pipeline"])
+@admin_router.post("/all")
 def trigger_all(fetch_limit: int = DEFAULT_FETCH_LIMIT) -> PipelineRunResult:
     """Run the entire pipeline end-to-end (fetch → parse → embed → dedup → score)."""
     return run_all(fetch_limit=fetch_limit)
 
 
-@app.post("/run/digest", tags=["pipeline"])
+@admin_router.post("/digest")
 def trigger_digest(include_sent: bool = False) -> DigestResult:
     """Build, send, and record the daily digest.
 
     Pass ?include_sent=true to ignore the de-dup table (for previewing).
     """
     return run_digest(exclude_sent=not include_sent)
+
+
+if settings.expose_admin_endpoints:
+    app.include_router(admin_router)
+else:
+    logger.info("[api] admin /run/* endpoints disabled (EXPOSE_ADMIN_ENDPOINTS=false)")
