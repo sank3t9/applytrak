@@ -24,12 +24,15 @@ class Settings(BaseSettings):
     anthropic_rpm: int = Field(30, ge=1, description="Max Anthropic API calls per minute.")
 
     gemini_api_key: str = ""
-    gemini_model_parse: str = "gemini-3.5-flash-lite"
-    gemini_model_score: str = "gemini-3.5-flash"
-    # Free-tier ceilings differ per model (Flash-Lite 30 RPM, Flash 15 RPM), so the
-    # two tiers get separate budgets and separate limiter buckets. Values sit just
-    # under the published limits to leave room for retries.
-    gemini_rpm_parse: int = Field(25, ge=1)
+    # Two different Flash-Lite models on purpose: free-tier quota is per model, so
+    # this gives parse and score independent 500/day budgets and stops the
+    # scheduled pipeline from eating the visitors' scoring allowance. The full
+    # Flash models are unusable here — they allow only 20 requests per DAY.
+    # Check your own numbers at aistudio.google.com → Usage & billing.
+    gemini_model_parse: str = "gemini-3.1-flash-lite"
+    gemini_model_score: str = "gemini-3.5-flash-lite"
+    # Both Flash-Lite tiers allow 15 RPM; stay just under so retries have room.
+    gemini_rpm_parse: int = Field(12, ge=1)
     gemini_rpm_score: int = Field(12, ge=1)
     # Gemini 3.x models always reason; "low" keeps extraction and rubric scoring
     # cheap and fast. "off" omits the setting for model families that reject it.

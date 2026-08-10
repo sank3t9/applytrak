@@ -107,7 +107,9 @@ Both cost real API calls, so CI runs them on a weekly schedule and on manual dis
 
 **Embedding provenance.** Vectors from different models occupy unrelated coordinate spaces, so comparing them produces noise rather than a similarity. Every row records which model embedded it; dedup and matching filter to the active model, and the embed stage treats a stale tag like a missing vector. Switching `EMBEDDING_PROVIDER` therefore re-embeds the corpus over the next few runs instead of silently corrupting results.
 
-**Cost control.** Parses are cached by content hash plus provider and model, so re-running the pipeline (or the eval suite) doesn't re-pay for text already seen. Scoring prompts put the resume and rubric in a cached system block, so a batch pays full input price only on the first call. All provider calls pass through a per-minute rate limiter.
+**Cost control.** Parses are cached by content hash plus provider and model, so re-running the pipeline (or the eval suite) doesn't re-pay for text already seen. Scoring prompts put the resume and rubric in a cached system block, so a batch pays full input price only on the first call. All provider calls pass through a per-minute rate limiter, bucketed per model.
+
+**Living inside a free tier.** Free-tier quota is per model, which is worth exploiting: extraction and scoring run on two *different* Flash-Lite models so they draw on independent daily budgets and the scheduled pipeline can't consume the allowance visitors need. Each visitor session costs 12 calls (one profile extraction, one embedding, ten scores), which the scoring budget supports around 50 times a day. Published rate limits proved unreliable — the full Flash models turned out to allow 20 requests per *day* on a real key, so the numbers here come from the account's own usage dashboard rather than the docs.
 
 ## Deliberately out of scope
 
