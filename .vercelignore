@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.git/
+.github/
+tests/
+docker-compose.yml
+Dockerfile
+entrypoint.sh
+uv.lock
+profile.yaml
+profile.example.yaml
+*.md
