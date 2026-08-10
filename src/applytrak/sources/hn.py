@@ -8,6 +8,7 @@ Each top-level comment in a 'Who is hiring?' thread is treated as one posting.
 """
 
 import logging
+from datetime import UTC, datetime
 
 import httpx
 from bs4 import BeautifulSoup
@@ -28,6 +29,7 @@ class FetchedPosting(BaseModel):
     source_id: str
     url: str
     raw_text: str = Field(min_length=1)
+    posted_at: datetime | None = None
 
 
 def _clean_html(html_text: str) -> str:
@@ -77,11 +79,25 @@ def get_latest_who_is_hiring_thread_id(client: httpx.Client) -> int | None:
 
 
 def get_top_level_comment_ids(client: httpx.Client, thread_id: int) -> list[int]:
-    """Return the IDs of every top-level comment under a thread."""
+    """Return the IDs of every top-level comment under a thread, in HN's own order.
+
+    HN orders `kids` by its comment ranking, not by time. Use sort_newest_first
+    to get chronological order.
+    """
     item = _fetch_item(client, thread_id)
     if not item:
         return []
     return item.get("kids", [])
+
+
+def sort_newest_first(comment_ids: list[int]) -> list[int]:
+    """Order comment IDs newest-first.
+
+    HN assigns item IDs sequentially as items are created, so a larger ID always
+    means a later post. That makes descending ID an exact recency sort — and a
+    free one, since it needs no per-item request to read timestamps.
+    """
+    return sorted(comment_ids, reverse=True)
 
 
 def fetch_comment(client: httpx.Client, comment_id: int) -> FetchedPosting | None:
@@ -94,8 +110,13 @@ def fetch_comment(client: httpx.Client, comment_id: int) -> FetchedPosting | Non
     text = item.get("text")
     if not text:
         return None
+
+    unix_time = item.get("time")
+    posted_at = datetime.fromtimestamp(unix_time, tz=UTC) if unix_time else None
+
     return FetchedPosting(
         source_id=str(comment_id),
         url=HN_ITEM_URL.format(id=comment_id),
         raw_text=_clean_html(text),
+        posted_at=posted_at,
     )

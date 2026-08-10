@@ -28,12 +28,14 @@ from applytrak.models import Posting, Profile, RawPosting
 from applytrak.profile_config import ProfileConfig
 from applytrak.schemas import ParsedJD
 from applytrak.services.postings import fetch_unparsed_raw_postings, save_posting
-from applytrak.services.raw_postings import save_raw_posting
+from applytrak.services.raw_postings import existing_source_ids, save_raw_posting
 from applytrak.services.scores import fetch_unscored_postings, save_score
 from applytrak.sources.hn import (
+    SOURCE_NAME,
     fetch_comment,
     get_latest_who_is_hiring_thread_id,
     get_top_level_comment_ids,
+    sort_newest_first,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,6 +52,7 @@ HN_FETCH_SLEEP_S = 0.1
 
 class FetchResult(BaseModel):
     thread_id: int | None = None
+    thread_comments: int = 0
     inserted: int = 0
     skipped: int = 0
     empty_or_deleted: int = 0
@@ -60,6 +63,7 @@ class ParseResult(BaseModel):
     inserted: int = 0
     skipped: int = 0
     failed: int = 0
+    remaining: int = 0
 
 
 class EmbedResult(BaseModel):
@@ -103,15 +107,38 @@ class PipelineRunResult(BaseModel):
 
 
 def run_fetch(limit: int = DEFAULT_FETCH_LIMIT) -> FetchResult:
-    """Fetch top-N comments from latest 'Who is hiring?' thread → raw_postings."""
+    """Fetch the newest not-yet-seen comments from the latest 'Who is hiring?' thread.
+
+    Newest-first, and postings already stored are dropped before any HTTP request,
+    so `limit` bounds *new* postings per run rather than being consumed re-walking
+    ones we have. Successive runs therefore work backwards through the thread
+    instead of repeatedly seeing the same top slice.
+    """
     with httpx.Client(timeout=10.0) as client:
         thread_id = get_latest_who_is_hiring_thread_id(client)
         if thread_id is None:
             return FetchResult()
 
         all_ids = get_top_level_comment_ids(client, thread_id)
-        targets = all_ids[:limit]
-        result = FetchResult(thread_id=thread_id)
+        ordered = sort_newest_first(all_ids)
+
+        with session_scope() as session:
+            known = existing_source_ids(session, SOURCE_NAME, [str(cid) for cid in ordered])
+
+        candidates = [cid for cid in ordered if str(cid) not in known]
+        targets = candidates[:limit]
+
+        result = FetchResult(
+            thread_id=thread_id,
+            thread_comments=len(all_ids),
+            skipped=len(ordered) - len(candidates),
+        )
+        logger.info(
+            "[fetch] thread has %d comments, %d already stored, fetching %d newest",
+            len(all_ids),
+            result.skipped,
+            len(targets),
+        )
 
         for cid in targets:
             try:
@@ -138,10 +165,20 @@ def run_fetch(limit: int = DEFAULT_FETCH_LIMIT) -> FetchResult:
 
 
 def run_parse() -> ParseResult:
-    """Parse all unparsed raw_postings → postings via Claude Haiku."""
+    """Parse unparsed raw_postings → postings, up to PARSE_MAX_PER_RUN.
+
+    The cap keeps a backlog (a big fetch, or a fresh monthly thread) from
+    spending the whole day's provider quota in one run; `remaining` reports
+    what's left for the next one.
+    """
+    cap = settings.parse_max_per_run
     with session_scope() as session:
-        unparsed = fetch_unparsed_raw_postings(session)
-        targets = [(r.id, r.raw_text) for r in unparsed]
+        unparsed = fetch_unparsed_raw_postings(session, limit=cap + 1)
+        targets = [(r.id, r.raw_text) for r in unparsed[:cap]]
+        backlog = len(unparsed) > cap
+
+    if backlog:
+        logger.info("[parse] backlog exceeds cap of %d; remainder waits for the next run", cap)
 
     result = ParseResult()
     for raw_id, raw_text in targets:
@@ -158,6 +195,10 @@ def run_parse() -> ParseResult:
                 result.inserted += 1
             else:
                 result.skipped += 1
+
+    if backlog:
+        with session_scope() as session:
+            result.remaining = len(fetch_unparsed_raw_postings(session))
 
     return result
 

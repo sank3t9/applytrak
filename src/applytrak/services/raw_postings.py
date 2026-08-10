@@ -11,6 +11,22 @@ from applytrak.models import RawPosting
 from applytrak.sources.hn import FetchedPosting
 
 
+def existing_source_ids(session: Session, source: str, source_ids: list[str]) -> set[str]:
+    """Return which of these source_ids are already stored for this source.
+
+    Lets the fetcher skip known postings before spending HTTP requests on them.
+    """
+    if not source_ids:
+        return set()
+    rows = session.scalars(
+        select(RawPosting.source_id).where(
+            RawPosting.source == source,
+            RawPosting.source_id.in_(source_ids),
+        )
+    )
+    return set(rows)
+
+
 def save_raw_posting(session: Session, fetched: FetchedPosting) -> tuple[RawPosting, bool]:
     """Persist a fetched posting if not already in the DB.
 
@@ -31,6 +47,7 @@ def save_raw_posting(session: Session, fetched: FetchedPosting) -> tuple[RawPost
         source_id=fetched.source_id,
         url=fetched.url,
         raw_text=fetched.raw_text,
+        posted_at=fetched.posted_at,
     )
     session.add(new_posting)
     session.flush()

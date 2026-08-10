@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     expose_admin_endpoints: bool = True
 
     parse_cache_ttl_days: int = Field(30, ge=1)
+    # Ceiling on parse calls per pipeline run. A larger fetch (or a new monthly
+    # thread) leaves a backlog that drains over subsequent runs rather than
+    # spending the whole daily provider quota at once.
+    parse_max_per_run: int = Field(40, ge=1)
 
     # Visitor match flow (demo).
     demo_resume_max_chars: int = Field(15_000, ge=1_000)

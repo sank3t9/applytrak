@@ -262,6 +262,11 @@ def _llm_error(exc: Exception, doing: str) -> HTTPException:
     return HTTPException(status_code=503, detail=detail)
 
 
+def _published_at():
+    """When the posting went live, falling back to ingest time for older rows."""
+    return func.coalesce(RawPosting.posted_at, RawPosting.fetched_at)
+
+
 def _searchable(*, tag: str, cutoff: datetime):
     """Filter for postings eligible as match candidates.
 
@@ -272,7 +277,7 @@ def _searchable(*, tag: str, cutoff: datetime):
         (Posting.canonical_id.is_(None))
         & (Posting.description_embedding.is_not(None))
         & (Posting.embedding_model == tag)
-        & (RawPosting.fetched_at >= cutoff)
+        & (_published_at() >= cutoff)
     )
 
 
@@ -293,7 +298,7 @@ def _load_stats(session) -> Stats:
         select(
             func.count(Posting.id),
             func.count(func.distinct(Posting.company)),
-            func.max(RawPosting.fetched_at),
+            func.max(_published_at()),
         )
         .select_from(Posting)
         .join(RawPosting, Posting.raw_posting_id == RawPosting.id)
@@ -313,7 +318,7 @@ def _load_latest_postings(session) -> list[PostingSummary]:
         )
         .join(RawPosting, Posting.raw_posting_id == RawPosting.id)
         .where(Posting.canonical_id.is_(None))
-        .order_by(RawPosting.fetched_at.desc(), Posting.parsed_at.desc())
+        .order_by(_published_at().desc())
         .limit(LATEST_POSTINGS_LIMIT)
     ).all()
     return [

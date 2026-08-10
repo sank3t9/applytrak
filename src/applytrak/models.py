@@ -43,6 +43,9 @@ class RawPosting(Base):
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    # When the source published it, as opposed to when we ingested it. Null for
+    # rows fetched before this was recorded.
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (UniqueConstraint("source", "source_id", name="uq_source_source_id"),)
 
