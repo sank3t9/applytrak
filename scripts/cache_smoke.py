@@ -28,13 +28,13 @@ def main() -> int:
             return 1
         text = raw.raw_text
 
-    print(f"\n=== Call 1 (expected: cache miss → real LLM call) ===")
+    print("\n=== Call 1 (expected: cache miss → real LLM call) ===")
     t0 = time.perf_counter()
     parsed1 = parse_jd(text)
     t1 = time.perf_counter()
     print(f"[OK] {parsed1.company} | {parsed1.title}  ({(t1 - t0):.2f}s)")
 
-    print(f"\n=== Call 2 (expected: cache hit → no LLM call) ===")
+    print("\n=== Call 2 (expected: cache hit → no LLM call) ===")
     t0 = time.perf_counter()
     parsed2 = parse_jd(text)
     t1 = time.perf_counter()

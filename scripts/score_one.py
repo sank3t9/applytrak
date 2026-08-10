@@ -83,7 +83,7 @@ def main() -> int:
     print(f"  skills_matched:    {judgment.skills_matched}")
     print(f"  skills_missing:    {judgment.skills_missing}")
     print(f"  hard_blockers:     {judgment.hard_blockers}")
-    print(f"\n  reasoning:")
+    print("\n  reasoning:")
     print(f"    {judgment.reasoning}")
 
     return 0

@@ -8,11 +8,18 @@ Run:
 
 import sys
 
+from sqlalchemy import text
+
 from applytrak.db import engine
 from applytrak.models import Base
 
 
 def main() -> int:
+    # Vector columns need the pgvector extension; fresh databases (e.g. Neon)
+    # don't have it enabled yet. No-op where it already exists.
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
     print("Creating tables...")
     Base.metadata.create_all(engine)
 

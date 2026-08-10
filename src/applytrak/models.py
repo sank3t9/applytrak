@@ -159,6 +159,25 @@ class RelevanceScore(Base):
         return f"<RelevanceScore posting_id={self.posting_id} score={self.score:.2f}>"
 
 
+class ParseCache(Base):
+    """LLM parse-result cache row. Used when Redis is not configured.
+
+    Key format mirrors the Redis cache: parse:<version>:<provider:model>:<sha256>.
+    """
+
+    __tablename__ = "parse_cache"
+
+    cache_key: Mapped[str] = mapped_column(String(256), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<ParseCache key={self.cache_key[:32]}... expires_at={self.expires_at}>"
+
+
 class Digest(Base):
     """One row per digest sent. posting_ids tracks what was included."""
 
