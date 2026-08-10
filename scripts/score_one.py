@@ -59,9 +59,7 @@ def main() -> int:
             print("[FAIL] No profile in DB. Run scripts/seed_profile.py first.", file=sys.stderr)
             return 1
 
-        posting = session.scalar(
-            select(Posting).order_by(Posting.parsed_at.desc()).limit(1)
-        )
+        posting = session.scalar(select(Posting).order_by(Posting.parsed_at.desc()).limit(1))
         if posting is None:
             print("[FAIL] No postings in DB. Run scripts/parse_pending.py first.", file=sys.stderr)
             return 1

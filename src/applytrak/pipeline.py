@@ -11,7 +11,7 @@ import time
 
 import httpx
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from applytrak.config import settings
 from applytrak.db import session_scope
@@ -21,7 +21,7 @@ from applytrak.delivery.digest import (
     select_top_postings,
 )
 from applytrak.delivery.telegram import send_message
-from applytrak.llm.embeddings import embed_texts
+from applytrak.llm.embeddings import current_embedding_model, embed_texts
 from applytrak.llm.parse_prompt import parse_jd
 from applytrak.llm.score_prompt import score_posting
 from applytrak.models import Posting, Profile, RawPosting
@@ -163,13 +163,23 @@ def run_parse() -> ParseResult:
 
 
 def run_embed() -> EmbedResult:
-    """Embed all postings missing description_embedding via Voyage AI."""
+    """Embed postings that have no vector, or a vector from a stale model.
+
+    Switching EMBEDDING_PROVIDER therefore self-heals the corpus over
+    subsequent runs — no manual migration needed.
+    """
+    tag = current_embedding_model()
     with session_scope() as session:
         rows = list(
             session.execute(
                 select(Posting.id, RawPosting.raw_text)
                 .join(RawPosting, Posting.raw_posting_id == RawPosting.id)
-                .where(Posting.description_embedding.is_(None))
+                .where(
+                    or_(
+                        Posting.description_embedding.is_(None),
+                        Posting.embedding_model.is_distinct_from(tag),
+                    )
+                )
                 .order_by(Posting.parsed_at)
             ).all()
         )
@@ -192,6 +202,7 @@ def run_embed() -> EmbedResult:
                 p = session.get(Posting, posting_id)
                 if p is not None:
                     p.description_embedding = vec
+                    p.embedding_model = tag
                     result.embedded += 1
 
         result.batches += 1
@@ -200,8 +211,13 @@ def run_embed() -> EmbedResult:
 
 
 def run_dedup() -> DedupResult:
-    """Mark duplicate postings via pgvector cosine similarity."""
+    """Mark duplicate postings via pgvector cosine similarity.
+
+    Only compares vectors from the active embedding model — mixing models would
+    compare unrelated vector spaces.
+    """
     threshold = settings.dedupe_similarity_threshold
+    tag = current_embedding_model()
     result = DedupResult(threshold=threshold)
 
     with session_scope() as session:
@@ -209,6 +225,7 @@ def run_dedup() -> DedupResult:
             session.scalars(
                 select(Posting)
                 .where(Posting.description_embedding.is_not(None))
+                .where(Posting.embedding_model == tag)
                 .order_by(Posting.parsed_at)
             )
         )
@@ -224,6 +241,7 @@ def run_dedup() -> DedupResult:
             row = session.execute(
                 select(Posting.id, distance_expr.label("dist"))
                 .where(Posting.description_embedding.is_not(None))
+                .where(Posting.embedding_model == tag)
                 .where(Posting.canonical_id.is_(None))
                 .where(Posting.id != posting.id)
                 .where(Posting.parsed_at < posting.parsed_at)

@@ -14,10 +14,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 def main() -> int:
     result = run_embed()
-    print(
-        f"[DONE] embedded={result.embedded} "
-        f"batches={result.batches} failed={result.failed}"
-    )
+    print(f"[DONE] embedded={result.embedded} batches={result.batches} failed={result.failed}")
     return 0 if result.failed == 0 else 1
 
 

@@ -1,19 +1,17 @@
-"""Parse a raw JD into structured fields using Claude (via tool use).
+"""Parse a raw JD into structured fields via the configured LLM provider.
 
 Public API:
     parse_jd(raw_text) -> ParsedJD
 
 Includes:
-  - Redis-backed parse cache (sha256(raw_text) → ParsedJD)
-  - Per-minute rate limit on the Anthropic call
+  - parse cache keyed by sha256(raw_text) + provider/model (Redis or Postgres)
+  - per-minute rate limit, applied inside the provider layer
 """
 
 import logging
 
-from applytrak.config import settings
 from applytrak.llm.cache import parse_cache_get, parse_cache_set
-from applytrak.llm.client import client
-from applytrak.rate_limit import acquire_rate_limit
+from applytrak.llm.providers import generate_structured
 from applytrak.schemas import ParsedJD
 
 logger = logging.getLogger(__name__)
@@ -50,42 +48,29 @@ For parse_confidence:
 - 0.3-0.6: vague or marketing-heavy
 - 0.0-0.3: barely a job posting
 
-Use the extract_job_posting tool to return your structured extraction."""
+Return the structured extraction."""
 
 
 def parse_jd(raw_text: str) -> ParsedJD:
-    """Parse a raw JD into a ParsedJD via Claude tool use.
+    """Parse a raw JD into a ParsedJD via the configured provider.
 
-    Cache: checks Redis first; cache hits skip the LLM call entirely.
-    Rate limit: blocks if Anthropic RPM budget for this minute is spent.
+    Cache: checked first; hits skip the LLM call entirely.
+    Rate limit: applied inside the provider layer.
 
-    Raises pydantic.ValidationError if Claude returns malformed structured output.
-    Raises ValueError if Claude doesn't call the tool at all.
+    Raises pydantic.ValidationError if the model returns malformed output.
+    Raises ValueError if it returns no structured payload.
     """
     cached = parse_cache_get(raw_text)
     if cached is not None:
         logger.info("parse cache HIT (text len=%d)", len(raw_text))
         return cached
 
-    with acquire_rate_limit("anthropic", max_per_minute=settings.anthropic_rpm):
-        response = client.messages.create(
-            model=settings.anthropic_model_parse,
-            max_tokens=2048,
-            tools=[
-                {
-                    "name": TOOL_NAME,
-                    "description": "Extract structured fields from a job posting.",
-                    "input_schema": ParsedJD.model_json_schema(),
-                }
-            ],
-            tool_choice={"type": "tool", "name": TOOL_NAME},
-            messages=[{"role": "user", "content": PARSE_PROMPT.format(raw_text=raw_text)}],
-        )
-
-    for block in response.content:
-        if block.type == "tool_use" and block.name == TOOL_NAME:
-            parsed = ParsedJD(**block.input)
-            parse_cache_set(raw_text, parsed)
-            return parsed
-
-    raise ValueError(f"Claude did not call {TOOL_NAME!r} tool. Response: {response.content!r}")
+    parsed = generate_structured(
+        task="parse",
+        user=PARSE_PROMPT.format(raw_text=raw_text),
+        schema=ParsedJD,
+        max_tokens=2048,
+        tool_name=TOOL_NAME,
+    )
+    parse_cache_set(raw_text, parsed)
+    return parsed

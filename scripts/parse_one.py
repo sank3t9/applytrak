@@ -20,9 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 def main() -> int:
     with session_scope() as session:
-        raw = session.scalar(
-            select(RawPosting).order_by(RawPosting.fetched_at.desc()).limit(1)
-        )
+        raw = session.scalar(select(RawPosting).order_by(RawPosting.fetched_at.desc()).limit(1))
         if raw is None:
             print("[FAIL] No raw_postings in DB. Run scripts/save_one.py first.", file=sys.stderr)
             return 1

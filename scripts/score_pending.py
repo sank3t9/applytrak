@@ -14,10 +14,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 def main() -> int:
     result = run_score()
-    print(
-        f"[DONE] inserted={result.inserted} "
-        f"skipped={result.skipped} failed={result.failed}"
-    )
+    print(f"[DONE] inserted={result.inserted} skipped={result.skipped} failed={result.failed}")
     return 0 if result.failed == 0 else 1
 
 

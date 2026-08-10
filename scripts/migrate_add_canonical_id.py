@@ -15,9 +15,7 @@ from applytrak.db import engine
 
 def main() -> int:
     with engine.begin() as conn:
-        conn.execute(
-            text("ALTER TABLE postings ADD COLUMN IF NOT EXISTS canonical_id uuid;")
-        )
+        conn.execute(text("ALTER TABLE postings ADD COLUMN IF NOT EXISTS canonical_id uuid;"))
         # Add the FK only if it doesn't already exist (Postgres-specific approach).
         conn.execute(
             text(

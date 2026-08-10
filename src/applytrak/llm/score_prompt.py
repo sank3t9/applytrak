@@ -1,18 +1,15 @@
-"""Score a parsed JD against a candidate profile using Claude Sonnet.
+"""Score a parsed JD against a candidate profile via the configured LLM provider.
 
 Public API:
     score_posting(parsed_jd, profile) -> RelevanceJudgment
 
-Uses Anthropic prompt caching: the rubric + resume + profile config are placed
-in a cached `system` block so back-to-back scoring calls in the same batch only
-pay full input cost on the first call. Subsequent calls within the 5-min TTL
-read the prefix at 0.1× the per-token rate.
+The rubric + resume + profile config go in the system block, which is stable
+across every posting in a batch. On the Anthropic path the provider layer sends
+it with prompt caching, so back-to-back calls only pay full input cost once.
 """
 
-from applytrak.config import settings
-from applytrak.llm.client import client
+from applytrak.llm.providers import generate_structured
 from applytrak.profile_config import ProfileConfig
-from applytrak.rate_limit import acquire_rate_limit
 from applytrak.schemas import ParsedJD, RelevanceJudgment
 
 TOOL_NAME = "judge_relevance"
@@ -62,7 +59,7 @@ For one_line_summary, write ONE line ≤ 160 characters that the candidate can s
 - "Heavy backend role, on-site SF only — skip"
 Do NOT write multiple sentences here.
 
-Use the judge_relevance tool to return your structured judgment."""
+Return your structured judgment."""
 
 
 USER_PROMPT = """Job posting (parsed):
@@ -94,40 +91,16 @@ def _build_system_block(profile: ProfileConfig) -> str:
 
 
 def score_posting(parsed_jd: ParsedJD, profile: ProfileConfig) -> RelevanceJudgment:
-    """Score a parsed JD against a profile via Claude Sonnet tool use.
+    """Score a parsed JD against a profile via the configured provider.
 
-    Raises pydantic.ValidationError if Claude returns malformed structured output.
-    Raises ValueError if Claude doesn't call the tool.
+    Raises pydantic.ValidationError if the model returns malformed output.
+    Raises ValueError if it returns no structured payload.
     """
-    system_text = _build_system_block(profile)
-    user_text = USER_PROMPT.format(parsed_jd_json=parsed_jd.model_dump_json(indent=2))
-
-    with acquire_rate_limit("anthropic", max_per_minute=settings.anthropic_rpm):
-        response = client.messages.create(
-            model=settings.anthropic_model_score,
-            max_tokens=2048,
-            system=[
-                {
-                    "type": "text",
-                    "text": system_text,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            tools=[
-                {
-                    "name": TOOL_NAME,
-                    "description": (
-                        "Return a structured relevance judgment for this JD vs candidate."
-                    ),
-                    "input_schema": RelevanceJudgment.model_json_schema(),
-                }
-            ],
-            tool_choice={"type": "tool", "name": TOOL_NAME},
-            messages=[{"role": "user", "content": user_text}],
-        )
-
-    for block in response.content:
-        if block.type == "tool_use" and block.name == TOOL_NAME:
-            return RelevanceJudgment(**block.input)
-
-    raise ValueError(f"Claude did not call {TOOL_NAME!r} tool. Response: {response.content!r}")
+    return generate_structured(
+        task="score",
+        system=_build_system_block(profile),
+        user=USER_PROMPT.format(parsed_jd_json=parsed_jd.model_dump_json(indent=2)),
+        schema=RelevanceJudgment,
+        max_tokens=2048,
+        tool_name=TOOL_NAME,
+    )

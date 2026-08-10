@@ -1,21 +1,19 @@
 """LLM-as-Judge: grade the quality of a scorer's reasoning.
 
-The judge is a separate Claude call evaluating the *scorer's output* against
+The judge is a separate LLM call evaluating the *scorer's output* against
 the *original inputs*. It does NOT re-score; it grades the reasoning's
 specificity, groundedness, and whether the score is in a defensible range.
 
-Uses Anthropic prompt caching: the judge instructions + resume + candidate
-constraints are placed in a cached `system` block so back-to-back judgments
-in the same eval run only pay full input cost on the first call.
+The judge instructions + resume + candidate constraints go in the system block,
+stable across an eval run — on the Anthropic path the provider layer sends it
+with prompt caching so only the first judgment pays full input cost.
 
 Public API:
     judge_score(parsed_jd, profile, judgment) -> JudgeVerdict
 """
 
-from applytrak.config import settings
-from applytrak.llm.client import client
+from applytrak.llm.providers import generate_structured
 from applytrak.profile_config import ProfileConfig
-from applytrak.rate_limit import acquire_rate_limit
 from applytrak.schemas import JudgeVerdict, ParsedJD, RelevanceJudgment
 
 TOOL_NAME = "deliver_verdict"
@@ -49,7 +47,7 @@ Grade strictly:
     "doesn't justify why score is below 0.5"
 - critique: 2-4 tight sentences (≤ 80 words) explaining your verdict.
 
-Use the deliver_verdict tool to return your assessment."""
+Return your structured assessment."""
 
 
 USER_PROMPT = """Job posting (parsed):
@@ -94,8 +92,7 @@ def _build_system_block(profile: ProfileConfig) -> str:
 def judge_score(
     parsed_jd: ParsedJD, profile: ProfileConfig, judgment: RelevanceJudgment
 ) -> JudgeVerdict:
-    """Grade a scorer's RelevanceJudgment via Claude Sonnet."""
-    system_text = _build_system_block(profile)
+    """Grade a scorer's RelevanceJudgment via the configured provider."""
     user_text = USER_PROMPT.format(
         parsed_jd_json=parsed_jd.model_dump_json(indent=2),
         score=judgment.score,
@@ -106,30 +103,11 @@ def judge_score(
         hard_blockers=", ".join(judgment.hard_blockers) or "(none)",
     )
 
-    with acquire_rate_limit("anthropic", max_per_minute=settings.anthropic_rpm):
-        response = client.messages.create(
-            model=settings.anthropic_model_score,
-            max_tokens=1024,
-            system=[
-                {
-                    "type": "text",
-                    "text": system_text,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            tools=[
-                {
-                    "name": TOOL_NAME,
-                    "description": "Return a structured judgment on the scorer's reasoning.",
-                    "input_schema": JudgeVerdict.model_json_schema(),
-                }
-            ],
-            tool_choice={"type": "tool", "name": TOOL_NAME},
-            messages=[{"role": "user", "content": user_text}],
-        )
-
-    for block in response.content:
-        if block.type == "tool_use" and block.name == TOOL_NAME:
-            return JudgeVerdict(**block.input)
-
-    raise ValueError(f"Judge did not call {TOOL_NAME!r}. Response: {response.content!r}")
+    return generate_structured(
+        task="score",
+        system=_build_system_block(profile),
+        user=user_text,
+        schema=JudgeVerdict,
+        max_tokens=1024,
+        tool_name=TOOL_NAME,
+    )

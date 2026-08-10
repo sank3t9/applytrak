@@ -87,6 +87,10 @@ class Posting(Base):
     )
 
     description_embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), nullable=True)
+    # Which model produced description_embedding, as "<provider>:<model>". Vectors from
+    # different models are incomparable, so dedup/match filter on the active tag and
+    # run_embed re-embeds rows whose tag is stale.
+    embedding_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     canonical_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),

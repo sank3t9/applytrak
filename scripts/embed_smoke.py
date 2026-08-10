@@ -25,7 +25,7 @@ def main() -> int:
     embeddings = embed_texts([similar, different])
 
     print(f"\nDimensions: {len(embeddings[0])}")
-    print(f"L2 norm[0]: {math.sqrt(sum(x*x for x in embeddings[0])):.4f}  (should be ~1.0)")
+    print(f"L2 norm[0]: {math.sqrt(sum(x * x for x in embeddings[0])):.4f}  (should be ~1.0)")
     print(f"First 5 values[0]: {embeddings[0][:5]}")
 
     sim = cosine_similarity(embeddings[0], embeddings[1])

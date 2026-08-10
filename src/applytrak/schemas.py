@@ -80,6 +80,73 @@ class ParsedJD(BaseModel):
     )
 
 
+class ExtractedProfile(BaseModel):
+    """Targeting preferences inferred from a resume by the LLM.
+
+    Combined with the raw resume text to build a ProfileConfig for scoring,
+    so a visitor gets matches without filling in a form.
+    """
+
+    total_yoe: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Total years of professional experience evident from the resume. "
+            "Count real work history; exclude internships under 6 months. "
+            "Null if it genuinely cannot be determined."
+        ),
+    )
+    target_yoe_min: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Lowest YOE requirement this candidate should be shown, usually "
+            "total_yoe minus 2 (floor 0)."
+        ),
+    )
+    target_yoe_max: int | None = Field(
+        default=None,
+        ge=0,
+        description="Highest YOE requirement worth showing, usually total_yoe plus 3.",
+    )
+
+    target_locations: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Locations the candidate plausibly wants, based on where they've worked "
+            "or studied, or any stated preference. Empty if unclear."
+        ),
+    )
+    remote_ok: bool = Field(
+        default=True,
+        description="True unless the resume explicitly rules out remote work.",
+    )
+
+    must_have_skills: list[str] = Field(
+        default_factory=list,
+        description=(
+            "The candidate's strongest, most-evidenced technical skills — "
+            "languages, frameworks, tools they clearly know. Cap at 15."
+        ),
+    )
+    nice_to_have_skills: list[str] = Field(
+        default_factory=list,
+        description="Secondary skills mentioned once or in passing. Cap at 15.",
+    )
+
+    seniority: str | None = Field(
+        default=None,
+        description="One word if evident: intern, junior, mid, senior, staff, principal.",
+    )
+    primary_domain: str | None = Field(
+        default=None,
+        description=(
+            "Short phrase for the candidate's main area, e.g. 'backend engineering', "
+            "'applied AI / LLM systems', 'data engineering'."
+        ),
+    )
+
+
 class RelevanceJudgment(BaseModel):
     """Structured scoring output produced by Claude Sonnet against a parsed JD + profile."""
 

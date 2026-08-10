@@ -21,8 +21,7 @@ def main() -> int:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
         conn.execute(
             text(
-                "ALTER TABLE postings "
-                "ADD COLUMN IF NOT EXISTS description_embedding vector(1024);"
+                "ALTER TABLE postings ADD COLUMN IF NOT EXISTS description_embedding vector(1024);"
             )
         )
 

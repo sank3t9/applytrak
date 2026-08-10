@@ -11,7 +11,7 @@ dashboard at https://smith.langchain.com under the project name from .env
 import sys
 
 from applytrak.config import settings
-from applytrak.llm.client import client
+from applytrak.llm.client import get_anthropic_client
 
 
 def main() -> int:
@@ -21,7 +21,7 @@ def main() -> int:
     else:
         print("LangSmith: DISABLED (set LANGSMITH_API_KEY in .env to enable tracing)")
 
-    response = client.messages.create(
+    response = get_anthropic_client().messages.create(
         model=settings.anthropic_model_parse,
         max_tokens=64,
         messages=[
