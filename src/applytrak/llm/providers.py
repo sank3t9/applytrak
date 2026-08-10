@@ -8,13 +8,15 @@ The active provider comes from LLM_PROVIDER:
   - anthropic → forced tool use; the schema becomes the tool's input schema.
     A provided system block is sent with prompt caching (it's stable across a
     batch, so subsequent calls within the TTL read the prefix at reduced cost).
-  - gemini    → native structured output (response_schema on a Pydantic class);
-    thinking disabled to keep latency and free-tier token budgets predictable.
+  - gemini    → native structured output (response_schema on a Pydantic class),
+    minimal thinking, and one retry when the provider reports a rate limit.
 
-Both paths rate-limit through acquire_rate_limit under a per-provider key.
+Both paths rate-limit through acquire_rate_limit; Gemini buckets per model since
+its free-tier ceilings differ by tier.
 """
 
 import logging
+import time
 from typing import Literal, TypeVar
 
 from pydantic import BaseModel
@@ -162,13 +164,42 @@ def _gemini_structured(
         thinking_config=thinking,
     )
 
-    with acquire_rate_limit("gemini", max_per_minute=settings.gemini_rpm):
-        response = get_gemini_client().models.generate_content(
-            model=model,
-            contents=user,
-            config=config,
-        )
+    rpm = settings.gemini_rpm_parse if task == "parse" else settings.gemini_rpm_score
+    response = _gemini_call_with_retry(model=model, user=user, config=config, rpm=rpm)
 
     if not response.text:
         raise ValueError(f"Gemini returned no structured payload. Response: {response!r}")
     return schema.model_validate_json(response.text)
+
+
+# The in-process limiter can't coordinate across serverless instances, so a burst
+# of concurrent requests may still trip the provider's per-minute limit. One
+# retry converts that from a visible failure into a slower success. Daily-quota
+# exhaustion, which retrying can't fix, surfaces on the second attempt.
+_RETRY_DELAY_S = 8.0
+
+
+def _gemini_call_with_retry(*, model: str, user: str, config, rpm: int):
+    for attempt in (1, 2):
+        try:
+            # Bucket per model: the tiers have different ceilings, so sharing one
+            # bucket would throttle the fast model down to the slow one's limit.
+            with acquire_rate_limit(f"gemini:{model}", max_per_minute=rpm):
+                return get_gemini_client().models.generate_content(
+                    model=model,
+                    contents=user,
+                    config=config,
+                )
+        except Exception as e:
+            if attempt == 2 or not _is_rate_limited(e):
+                raise
+            logger.info("gemini rate-limited on %s, retrying once in %.0fs", model, _RETRY_DELAY_S)
+            time.sleep(_RETRY_DELAY_S)
+    raise AssertionError("unreachable")
+
+
+def _is_rate_limited(exc: Exception) -> bool:
+    status = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+    if status == 429:
+        return True
+    return "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)

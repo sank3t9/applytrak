@@ -156,8 +156,9 @@
 </div>
 
 <script>
-const TOP_K = {{ top_k }};
-const SCORE_CONCURRENCY = 3;
+// Concurrency 2 keeps the request burst under the provider's per-minute limit
+// while still filling cards in visibly.
+const SCORE_CONCURRENCY = 2;
 
 const $ = (id) => document.getElementById(id);
 const resumeEl = $('resume'), goEl = $('go'), errEl = $('error');

@@ -54,6 +54,10 @@ def main() -> int:
         level=logging.INFO,
         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
     )
+    # One line per HTTP call and an "AFC is enabled" notice per request drowns out
+    # the pipeline's own progress; warnings from these still get through.
+    for noisy in ("httpx", "google_genai.models", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     print(f"provider={settings.llm_provider} embeddings={settings.embedding_provider}")
     print(f"redis={'yes' if settings.redis_url else 'no (postgres cache + local limiter)'}")

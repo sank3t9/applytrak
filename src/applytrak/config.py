@@ -26,7 +26,11 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model_parse: str = "gemini-3.5-flash-lite"
     gemini_model_score: str = "gemini-3.5-flash"
-    gemini_rpm: int = Field(8, ge=1, description="Max Gemini API calls per minute (free tier).")
+    # Free-tier ceilings differ per model (Flash-Lite 30 RPM, Flash 15 RPM), so the
+    # two tiers get separate budgets and separate limiter buckets. Values sit just
+    # under the published limits to leave room for retries.
+    gemini_rpm_parse: int = Field(25, ge=1)
+    gemini_rpm_score: int = Field(12, ge=1)
     # Gemini 3.x models always reason; "low" keeps extraction and rubric scoring
     # cheap and fast. "off" omits the setting for model families that reject it.
     gemini_thinking_level: Literal["low", "high", "off"] = "low"
@@ -57,7 +61,10 @@ class Settings(BaseSettings):
 
     # Visitor match flow (demo).
     demo_resume_max_chars: int = Field(15_000, ge=1_000)
-    match_top_k: int = Field(15, ge=1, le=30)
+    # Each candidate costs one scoring call, so this is the main lever on both
+    # per-visitor latency and free-tier quota burn. 10 keeps a session near 12
+    # calls and finishes in well under a minute.
+    match_top_k: int = Field(10, ge=1, le=30)
     match_recent_days: int = Field(45, ge=1)
 
 
