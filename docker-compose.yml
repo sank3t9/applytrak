@@ -44,6 +44,8 @@ services:
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-applytrak}
       RUN_SCHEDULER: ${RUN_SCHEDULER:-false}
       ANTHROPIC_RPM: ${ANTHROPIC_RPM:-30}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     depends_on:
       postgres:
         condition: service_healthy

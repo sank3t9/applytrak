@@ -128,10 +128,11 @@ class RelevanceJudgment(BaseModel):
     )
 
     one_line_summary: str = Field(
-        max_length=120,
+        max_length=200,
         description=(
-            "Short summary for the digest. Must include role/company hint, key match signal, "
-            "and a verdict word. Example: 'Strong RAG match at Anthropic, remote, 2-4 YOE — apply'."
+            "ONE short line for the digest, ≤ 160 characters. Must include role/company hint, "
+            "key match signal, and a verdict word. "
+            "Example: 'Strong RAG match at Anthropic, remote, 2-4 YOE — apply'."
         ),
     )
 
