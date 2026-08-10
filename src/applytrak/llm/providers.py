@@ -145,14 +145,21 @@ def _gemini_structured(
 
     model = settings.gemini_model_parse if task == "parse" else settings.gemini_model_score
 
+    # Extraction and rubric scoring don't benefit from extended reasoning, so keep
+    # it minimal for latency and free-tier token spend. Gemini 3.x expects
+    # thinking_level and rejects the older thinking_budget outright.
+    thinking = (
+        None
+        if settings.gemini_thinking_level == "off"
+        else genai_types.ThinkingConfig(thinking_level=settings.gemini_thinking_level)
+    )
+
     config = genai_types.GenerateContentConfig(
         system_instruction=system,
         max_output_tokens=max_tokens,
         response_mime_type="application/json",
         response_schema=schema,
-        # Extraction and rubric scoring don't benefit from extended thinking;
-        # a 0 budget keeps latency and free-tier token spend predictable.
-        thinking_config=genai_types.ThinkingConfig(thinking_budget=0),
+        thinking_config=thinking,
     )
 
     with acquire_rate_limit("gemini", max_per_minute=settings.gemini_rpm):

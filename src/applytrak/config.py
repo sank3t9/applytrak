@@ -24,9 +24,12 @@ class Settings(BaseSettings):
     anthropic_rpm: int = Field(30, ge=1, description="Max Anthropic API calls per minute.")
 
     gemini_api_key: str = ""
-    gemini_model_parse: str = "gemini-2.5-flash-lite"
-    gemini_model_score: str = "gemini-2.5-flash"
+    gemini_model_parse: str = "gemini-3.5-flash-lite"
+    gemini_model_score: str = "gemini-3.5-flash"
     gemini_rpm: int = Field(8, ge=1, description="Max Gemini API calls per minute (free tier).")
+    # Gemini 3.x models always reason; "low" keeps extraction and rubric scoring
+    # cheap and fast. "off" omits the setting for model families that reject it.
+    gemini_thinking_level: Literal["low", "high", "off"] = "low"
 
     # Vectors from different providers/models are incomparable — one DB must stick to
     # one embedding model. Switching re-embeds the corpus (see run_embed provenance check).
