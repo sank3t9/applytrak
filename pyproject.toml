@@ -6,6 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Sanket" }]
 
+# Core: everything the deployed demo needs (Gemini provider + web app + pipeline).
+# Deliberately excludes the Anthropic and Voyage providers — the deployment
+# installs with `uv sync --no-dev`, and those pull ~45 MB of transitive weight
+# (pillow, tokenizers, hf-xet, aiohttp) against a 250 MB function ceiling. Their
+# imports are all lazy, so the app runs fine without them installed.
 dependencies = [
     "psycopg[binary]>=3.2",
     "redis>=5.0",
@@ -14,22 +19,30 @@ dependencies = [
     "sqlalchemy>=2.0",
     "httpx>=0.27",
     "beautifulsoup4>=4.12",
-    "anthropic>=0.40",
     "google-genai>=1.0",
     "jinja2>=3.1",
-    "langsmith>=0.2",
     "pyyaml>=6.0",
-    "voyageai>=0.3",
     "pgvector>=0.3",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.30",
     "apscheduler>=3.10",
 ]
 
+[project.optional-dependencies]
+# Alternative providers, used for local runs and the eval suite.
+providers = [
+    "anthropic>=0.40",
+    "langsmith>=0.2",
+    "voyageai>=0.3",
+]
+
 [dependency-groups]
+# Installed by default with a plain `uv sync`, so local dev, Docker, and CI all
+# get the alternative providers; only `--no-dev` (i.e. the deployment) omits them.
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
+    "applytrak[providers]",
 ]
 
 [build-system]

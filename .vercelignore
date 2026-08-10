@@ -9,7 +9,10 @@ tests/
 docker-compose.yml
 Dockerfile
 entrypoint.sh
-uv.lock
 profile.yaml
 profile.example.yaml
-*.md
+
+# NOT ignored on purpose:
+#   uv.lock   - Vercel installs with `uv sync --locked`
+#   README.md - pyproject declares it as the package readme, so the wheel
+#               build fails without it

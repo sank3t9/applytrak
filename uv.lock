@@ -195,14 +195,12 @@ name = "applytrak"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "anthropic" },
     { name = "apscheduler" },
     { name = "beautifulsoup4" },
     { name = "fastapi" },
     { name = "google-genai" },
     { name = "httpx" },
     { name = "jinja2" },
-    { name = "langsmith" },
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -211,25 +209,32 @@ dependencies = [
     { name = "redis" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+providers = [
+    { name = "anthropic" },
+    { name = "langsmith" },
     { name = "voyageai" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "applytrak", extra = ["providers"] },
     { name = "pytest" },
     { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", specifier = ">=0.40" },
+    { name = "anthropic", marker = "extra == 'providers'", specifier = ">=0.40" },
     { name = "apscheduler", specifier = ">=3.10" },
     { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "fastapi", specifier = ">=0.110" },
     { name = "google-genai", specifier = ">=1.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1" },
-    { name = "langsmith", specifier = ">=0.2" },
+    { name = "langsmith", marker = "extra == 'providers'", specifier = ">=0.2" },
     { name = "pgvector", specifier = ">=0.3" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.5" },
@@ -238,11 +243,13 @@ requires-dist = [
     { name = "redis", specifier = ">=5.0" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
-    { name = "voyageai", specifier = ">=0.3" },
+    { name = "voyageai", marker = "extra == 'providers'", specifier = ">=0.3" },
 ]
+provides-extras = ["providers"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "applytrak", extras = ["providers"] },
     { name = "pytest", specifier = ">=8.0" },
     { name = "ruff", specifier = ">=0.6" },
 ]
