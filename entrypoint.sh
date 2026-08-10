@@ -1,15 +1,10 @@
 #!/bin/sh
 set -e
 
-# Run idempotent schema setup on every startup.
-# - init_db creates any missing tables
-# - migrations add columns if they don't already exist
+# Idempotent schema setup on every startup: creates missing tables, then adds
+# any missing columns.
 echo "[entrypoint] running schema setup..."
-uv run python scripts/init_db.py
-uv run python scripts/migrate_add_embeddings.py
-uv run python scripts/migrate_add_canonical_id.py
-uv run python scripts/migrate_add_embedding_model.py
-uv run python scripts/migrate_add_posted_at.py
+uv run python scripts/apply_schema.py
 
 # If a command was passed (e.g. "python scripts/save_one.py"), run it.
 # Otherwise default: start the FastAPI server.

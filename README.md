@@ -68,7 +68,13 @@ cp .env.example .env          # fill in DATABASE_URL + a provider key
 docker compose up --build     # postgres + redis + api on :8000
 ```
 
-`entrypoint.sh` applies the schema on every start. Then seed a profile and run the pipeline:
+`entrypoint.sh` applies the schema on every start. Running against a database directly instead (Neon, or Postgres on the host) needs it once:
+
+```bash
+uv run python scripts/apply_schema.py     # idempotent; also after pulling schema changes
+```
+
+Then seed a profile and run the pipeline:
 
 ```bash
 cp profile.example.yaml profile.yaml    # your resume + targeting
