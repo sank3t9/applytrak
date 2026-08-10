@@ -3,9 +3,16 @@
 Verifies GEMINI_API_KEY works and that both halves of the demo stack respond:
 structured output (parse) and 1024-dim embeddings.
 
-Run:
-    GEMINI_API_KEY=... LLM_PROVIDER=gemini EMBEDDING_PROVIDER=gemini \
+Run (bash / Git Bash):
+    LLM_PROVIDER=gemini EMBEDDING_PROVIDER=gemini REDIS_URL= \\
         uv run python scripts/gemini_smoke.py
+
+Run (PowerShell):
+    $env:LLM_PROVIDER="gemini"; $env:EMBEDDING_PROVIDER="gemini"; $env:REDIS_URL=""
+    uv run python scripts/gemini_smoke.py
+
+REDIS_URL is blanked so the rate limiter stays in-process — this test needs no
+services at all.
 """
 
 import sys
@@ -22,18 +29,29 @@ Nice to have: Rust, gRPC, time-series databases
 """
 
 
+BASH_CMD = (
+    "LLM_PROVIDER=gemini EMBEDDING_PROVIDER=gemini REDIS_URL= uv run python scripts/gemini_smoke.py"
+)
+
+
 def main() -> int:
-    if settings.llm_provider != "gemini":
-        print(
-            f"[WARN] LLM_PROVIDER={settings.llm_provider!r}; set it to 'gemini' "
-            "to exercise the Gemini path."
-        )
     if not settings.gemini_api_key:
         print(
             "[FAIL] GEMINI_API_KEY is not set. Get a free key at "
             "https://aistudio.google.com/app/apikey",
             file=sys.stderr,
         )
+        return 1
+
+    # Fail fast rather than silently exercising a different provider.
+    wrong = []
+    if settings.llm_provider != "gemini":
+        wrong.append(f"LLM_PROVIDER={settings.llm_provider!r} (want 'gemini')")
+    if settings.embedding_provider != "gemini":
+        wrong.append(f"EMBEDDING_PROVIDER={settings.embedding_provider!r} (want 'gemini')")
+    if wrong:
+        print(f"[FAIL] wrong configuration: {'; '.join(wrong)}", file=sys.stderr)
+        print(f"\nRun it as:\n    {BASH_CMD}", file=sys.stderr)
         return 1
 
     print(f"Parse model:     {settings.gemini_model_parse}")
