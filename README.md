@@ -4,7 +4,7 @@ Paste your resume, get the job postings that actually fit — ranked, with the r
 
 Postings come from Hacker News "Who is hiring?" threads. A scheduled job fetches them, extracts structured fields with an LLM, embeds them, and collapses reposts. When someone pastes a resume, vector search narrows the corpus to the closest handful of postings and an LLM scores each one against that resume.
 
-> **Live demo:** _add your Vercel URL here_
+> **Live demo:** https://applytrak.sanketshigaonkar.tech/
 
 ## How matching works
 
